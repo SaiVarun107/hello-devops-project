@@ -3,7 +3,7 @@ provider "aws" {
 }
 
 resource "aws_security_group" "k8s_sg" {
-  name = "k8s-sg"
+  name = "k8s-sg-12"
 
   ingress {
     from_port   = 22
