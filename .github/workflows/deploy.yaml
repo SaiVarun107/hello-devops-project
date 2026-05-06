@@ -55,9 +55,8 @@ jobs:
         terraform init
         terraform apply -auto-approve
         terraform output -raw public_ip > ip.txt
-        IP=$(cat ip.txt | tr -d '\r\n'
+        IP=$(cat ip.txt | tr -d '\r\n')
         echo "Extracted IP: $IP"
-        # Read clean IP
         echo "ip=$IP" >> $GITHUB_OUTPUT
 
     # Wait for EC2 + Kubernetes setup
