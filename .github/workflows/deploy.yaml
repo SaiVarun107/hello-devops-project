@@ -86,4 +86,3 @@ jobs:
     - name: Print URL
       run: |
         echo "App URL: http://${{ steps.tf.outputs.ip }}:30007"
-``
