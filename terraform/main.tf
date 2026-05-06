@@ -53,7 +53,7 @@ resource "aws_instance" "k8s_server" {
               kubeadm init --pod-network-cidr=10.244.0.0/16
 
               mkdir -p /home/ubuntu/.kube
-              cp -i /etc/kubernetes/admin.conf /home/ubuntu/.kube/config
+              cp /etc/kubernetes/admin.conf /home/ubuntu/.kube/config
               chown ubuntu:ubuntu /home/ubuntu/.kube/config
 
               su - ubuntu -c "kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml"
