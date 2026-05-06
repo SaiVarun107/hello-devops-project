@@ -54,14 +54,14 @@ jobs:
           set -e
           export KUBECONFIG=/home/ubuntu/.kube/config
 
-          mkdir -p k8s
-
-          echo "${{ secrets.K8S_DEPLOYMENT }}" > k8s/deployment.yaml
-          echo "${{ secrets.K8S_SERVICE }}" > k8s/service.yaml
-
-          kubectl apply -f k8s/deployment.yaml
-          kubectl apply -f k8s/service.yaml
-
+          cd /home/ubuntu
+          
+          if [ ! -d "hello-devops-project" ]; then
+            git clone https://github.com/SaiVarun107/hello-devops-project.git
+          fi
+          cd hello-devops-project
+          git pull
+          kubectl apply -f k8s
           kubectl rollout restart deployment hello-app
           kubectl rollout status deployment hello-app
 
