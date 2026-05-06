@@ -54,10 +54,9 @@ jobs:
         cd terraform
         terraform init
         terraform apply -auto-approve
-
-        RAW=$(terraform output -raw public_ip)
-
-        IP=$(echo "$RAW" | tr -d '"' | tr -d '\r\n' | awk -F'::' '{print $1}')
+        terraform output -raw public_ip > ip.txt
+        
+        # Read clean IP
         echo "ip=$IP" >> $GITHUB_OUTPUT
 
     # Wait for EC2 + Kubernetes setup
@@ -87,6 +86,9 @@ jobs:
           kubectl apply -f k8s
           kubectl rollout restart deployment hello-app
           kubectl rollout status deployment hello-app
+    
+    - name: Debug IP
+      run: echo "IP = ${{ steps.tf.outputs.ip }}"
 
     # Print URL
     - name: Print URL
