@@ -1,0 +1,54 @@
+name: Full DevOps Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    # Build docker
+    - name: Build Image
+      run: docker build -t ${{ secrets.DOCKER_USER }}/hello-app ./app
+
+    # Login dockerhub
+    - name: Login DockerHub
+      run: echo ${{ secrets.DOCKER_PASS }} | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
+
+    # Push image
+    - name: Push Image
+      run: docker push ${{ secrets.DOCKER_USER }}/hello-app
+
+    # Terraform
+    - name: Terraform Apply
+      id: tf
+      run: |
+        cd terraform
+        terraform init
+        terraform apply -auto-approve
+        echo "EC2_IP=$(terraform output -raw public_ip)" >> $GITHUB_ENV
+
+    # Deploy to K8s
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@v0.1.6
+      with:
+        host: ${{ env.EC2_IP }}
+        username: ubuntu
+        key: ${{ secrets.PRIVATE_KEY }}
+        script: |
+          mkdir -p k8s
+          echo "${{ secrets.K8S_DEPLOYMENT }}" > k8s/deployment.yaml
+          echo "${{ secrets.K8S_SERVICE }}" > k8s/service.yaml
+
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+
+    # Print URL
+    - name: Print URL
+      run: echo "App URL: http://${{ env.EC2_IP }}:30007"
