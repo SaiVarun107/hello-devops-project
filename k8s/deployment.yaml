@@ -17,4 +17,3 @@ spec:
         image: glacierknight/hello-app:latest
         ports:
         - containerPort: 3000
-``
