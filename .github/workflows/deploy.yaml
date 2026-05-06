@@ -25,6 +25,10 @@ jobs:
     - name: Push Image
       run: docker push ${{ secrets.DOCKER_USERNAME }}/hello-app
 
+    # Install Terraform
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+
     # Terraform
     - name: Terraform Apply
       id: tf
