@@ -38,11 +38,6 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
         aws-region: ap-south-1
 
-
-        
-    - name: Install jq
-      run: sudo apt-get install -y jq
-
     # Terraform
     - name: Terraform Apply
       id: tf
@@ -50,7 +45,7 @@ jobs:
         cd terraform
         terraform init
         terraform apply -auto-approve
-        IP=$(terraform output -json | jq -r '.public_ip.value')
+        export IP=$(terraform output -raw public_ip)
         echo "EC2_IP=$IP" >> $GITHUB_ENV
 
 
