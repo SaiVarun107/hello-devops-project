@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: hello-app-1
+  name: hello-app
 spec:
   replicas: 1
   selector:
@@ -16,4 +16,5 @@ spec:
       - name: hello-container
         image: glacierknight/hello-app:latest
         ports:
-        - containerPort: 80
+        - containerPort: 3000
+``
