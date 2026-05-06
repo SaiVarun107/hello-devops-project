@@ -55,7 +55,9 @@ jobs:
         terraform init
         terraform apply -auto-approve
 
-        IP=$(terraform output -raw public_ip | tr -d '"')
+        RAW=$(terraform output -raw public_ip)
+
+        IP=$(echo "$RAW" | tr -d '"' | tr -d '\r\n' | awk -F'::' '{print $1}')
         echo "ip=$IP" >> $GITHUB_OUTPUT
 
     # Wait for EC2 + Kubernetes setup
