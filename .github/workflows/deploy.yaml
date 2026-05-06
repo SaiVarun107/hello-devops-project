@@ -13,24 +13,20 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
-    # Build docker
     - name: Build Image
       run: docker build -t ${{ secrets.DOCKER_USERNAME }}/hello-app ./app
 
-    # Login dockerhub
     - name: Login DockerHub
-      run: echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+      run: |
+        echo ${{ secrets.DOCKER_PASSWORD }} | docker login \
+        -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
-    # Push image
     - name: Push Image
       run: docker push ${{ secrets.DOCKER_USERNAME }}/hello-app
 
-    # Install Terraform
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2
 
-
-    # AWS Login
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
@@ -38,7 +34,6 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
         aws-region: ap-south-1
 
-    # Terraform
     - name: Terraform Apply
       id: tf
       run: |
@@ -48,23 +43,28 @@ jobs:
         IP=$(terraform output -raw public_ip | tr -d '\r\n')
         echo "ip=$IP" >> $GITHUB_OUTPUT
 
-
-    # Deploy to K8s
+    # FIXED DEPLOY STEP
     - name: Deploy to EC2
-      uses: appleboy/ssh-action@v0.1.6
+      uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ steps.tf.outputs.ip }}
         username: ubuntu
         key: ${{ secrets.PRIVATE_KEY }}
         script: |
+          set -e
+          export KUBECONFIG=/home/ubuntu/.kube/config
+
           mkdir -p k8s
+
           echo "${{ secrets.K8S_DEPLOYMENT }}" > k8s/deployment.yaml
           echo "${{ secrets.K8S_SERVICE }}" > k8s/service.yaml
 
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
 
-    # Print URL    
+          kubectl rollout restart deployment hello-app
+          kubectl rollout status deployment hello-app
+
     - name: Print URL
       run: |
         echo "App URL: http://${{ steps.tf.outputs.ip }}:30007"
