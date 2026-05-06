@@ -49,6 +49,7 @@ jobs:
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
 
-    # Print URL
+    # Print URL    
     - name: Print URL
-      run: echo "App URL: http://${{ env.EC2_IP }}:30007"
+      run: |
+        echo "App URL: http://${{ env.EC2_IP }}:30007"
