@@ -29,7 +29,7 @@ resource "aws_security_group" "k8s_sg" {
 
 resource "aws_instance" "k8s_server" {
   ami           = "ami-03f4878755434977f"
-  instance_type = "t2.micro"
+  instance_type = "t3.micro"
   key_name      = "devopskey"
 
   vpc_security_group_ids = [aws_security_group.k8s_sg.id]
