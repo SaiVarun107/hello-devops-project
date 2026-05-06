@@ -55,9 +55,11 @@ jobs:
         terraform init
         terraform apply -auto-approve
         terraform output -raw public_ip > ip.txt
-        IP=$(cat ip.txt | tr -d '\r\n')
-        echo "Extracted IP: $IP"
-        echo "ip=$IP" >> $GITHUB_OUTPUT
+        echo "ip=$(cat ip.txt)" >> $GITHUB_OUTPUT
+
+    - name: Debug IP
+      run: | 
+        echo "Extracted IP from tf: ${{ steps.tf.outputs.ip }}"
 
     # Wait for EC2 + Kubernetes setup
     - name: Wait for instance ready
@@ -87,8 +89,7 @@ jobs:
           kubectl rollout restart deployment hello-app
           kubectl rollout status deployment hello-app
     
-    - name: Debug IP
-      run: echo "IP = ${{ steps.tf.outputs.ip }}"
+
 
     # Print URL
     - name: Print URL
