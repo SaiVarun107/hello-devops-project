@@ -55,7 +55,7 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -auto-approve
 
-      ✅ # ✅ SAFE OUTPUT PARSING (Fixes "invalid format")
+      # ✅ SAFE OUTPUT PARSING (Fixes "invalid format")
       - name: Get EC2 Public IP
         id: get_ip
         run: |
@@ -71,12 +71,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      ✅ # ✅ DEBUG STEP (prevents missing host confusion)
+      # ✅ DEBUG STEP (prevents missing host confusion)
       - name: Debug EC2 IP
         run: |
           echo "EC2 IP is: ${{ needs.terraform.outputs.ec2_ip }}"
 
-      ✅ # ✅ SSH DEPLOY (Fixes "missing host")
+      # ✅ SSH DEPLOY (Fixes "missing host")
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
