@@ -1,98 +1,100 @@
-name: Full DevOps Pipeline
+name: Full Devops Pipeline
 
 on:
   push:
     branches:
       - main
 
+env:
+  DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/myapp
+
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
 
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+
     steps:
-    - name: Checkout
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # Build Docker image
-    - name: Build Image
-      run: docker build -t ${{ secrets.DOCKER_USERNAME }}/hello-app ./app
+      - name: Set image tag
+        id: meta
+        run: echo "tag=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
-    # Docker login
-    - name: Login DockerHub
-      run: |
-        echo ${{ secrets.DOCKER_PASSWORD }} | docker login \
-        -u ${{ secrets.DOCKER_USERNAME }} \
-        --password-stdin
+      - name: Login to Docker Hub
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-    # Push image
-    - name: Push Image
-      run: docker push ${{ secrets.DOCKER_USERNAME }}/hello-app
+      - name: Build Docker image
+        run: |
+          docker build -t $DOCKER_IMAGE:${{ steps.meta.outputs.tag }} .
 
-    # Setup Terraform
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v2
+      - name: Push Docker image
+        run: |
+          docker push $DOCKER_IMAGE:${{ steps.meta.outputs.tag }}
 
-    # AWS login
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
-        aws-region: ap-south-1
+  terraform:
+    runs-on: ubuntu-latest
+    needs: build-and-push
 
-    # Destroy old infra (safe)
-    - name: Terraform Destroy
-      run: |
-        cd terraform
-        terraform init
-        terraform destroy -auto-approve || true
+    outputs:
+      ec2_ip: ${{ steps.get_ip.outputs.ec2_ip }}
 
-    # Create infra + get IP
-    - name: Terraform Apply
-      id: tf
-      run: |
-        cd terraform
-        terraform init
-        terraform apply -auto-approve
-        
-        IP=$(terraform output -raw public_ip | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}')
-        echo "ip=${IP}" >> $GITHUB_OUTPUT
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    - name: Debug IP
-      run: | 
-        echo "Extracted IP from tf: ${{ steps.tf.outputs.ip }}"
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-    # Wait for EC2 + Kubernetes setup
-    - name: Wait for instance ready
-      run: sleep 60
+      - name: Terraform Init
+        run: terraform init
 
-    # Deploy to EC2
-    - name: Deploy to EC2
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ steps.tf.outputs.ip }}
-        username: ubuntu
-        key: ${{ secrets.PRIVATE_KEY }}
-        script: |
-          set -e
-          export KUBECONFIG=/home/ubuntu/.kube/config
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
 
-          cd /home/ubuntu
+      ✅ # ✅ SAFE OUTPUT PARSING (Fixes "invalid format")
+      - name: Get EC2 Public IP
+        id: get_ip
+        run: |
+          IP=$(terraform output -raw ec2_public_ip | tr -d '\n' | xargs)
+          echo "EC2_IP=$IP"
+          echo "ec2_ip=$IP" >> $GITHUB_OUTPUT
 
-          if [ ! -d "hello-devops-project" ]; then
-            git clone https://github.com/SaiVarun107/hello-devops-project.git
-          fi
+  deploy:
+    runs-on: ubuntu-latest
+    needs: terraform
 
-          cd hello-devops-project
-          git pull
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-          kubectl apply -f k8s
-          kubectl rollout restart deployment hello-app
-          kubectl rollout status deployment hello-app
-    
+      ✅ # ✅ DEBUG STEP (prevents missing host confusion)
+      - name: Debug EC2 IP
+        run: |
+          echo "EC2 IP is: ${{ needs.terraform.outputs.ec2_ip }}"
 
+      ✅ # ✅ SSH DEPLOY (Fixes "missing host")
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ needs.terraform.outputs.ec2_ip }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
 
-    # Print URL
-    - name: Print URL
-      run: |
-        echo "App URL: http://${{ steps.tf.outputs.ip }}:30007"
+            echo "Connected to server"
+
+            # Update kubeconfig if needed
+            export KUBECONFIG=/home/ubuntu/.kube/config
+
+            # Pull latest image
+            docker pull ${{ env.DOCKER_IMAGE }}:${{ needs.build-and-push.outputs.image_tag }}
+
+            # Update Kubernetes deployment
+            kubectl set image deployment/myapp myapp=${{ env.DOCKER_IMAGE }}:${{ needs.build-and-push.outputs.image_tag }} --record
+
+            kubectl rollout status deployment/myapp
